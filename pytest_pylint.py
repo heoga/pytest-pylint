@@ -3,6 +3,8 @@ from __future__ import unicode_literals
 from __future__ import absolute_import
 from __future__ import print_function
 from os.path import exists, join, dirname
+import sys
+
 from six.moves.configparser import (  # pylint: disable=import-error
     ConfigParser,
     NoSectionError,
@@ -57,6 +59,12 @@ def pytest_addoption(parser):
         default='CRWEF',
         help='The types of pylint errors to consider failures by letter'
         ', default is all of them (CRWEF).'
+    )
+    group.addoption(
+        "--pylint-pause-tracer",
+        action="store_true", default=False,
+        help="Pauses tracers (such as coverage) when pylint is runnning."
+        "  This boosts performance."
     )
 
 
@@ -129,7 +137,12 @@ def pytest_collection_finish(session):
     print('-' * 65)
     print('Linting files')
     # Run pylint over the collected files.
+    if session.config.option.pylint_pause_tracer:
+        tracer = sys.gettrace()
+        sys.settrace(None)
     result = lint.Run(args_list, reporter=reporter, exit=False)
+    if session.config.option.pylint_pause_tracer:
+        sys.settrace(tracer)
     messages = result.linter.reporter.data
     # Stores the messages in a dictionary for lookup in tests.
     for message in messages:

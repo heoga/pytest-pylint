@@ -37,6 +37,14 @@ tests by typing:
 
     py.test --pylint -m pylint
 
+When using an agressive tracing function, such as in pytest-cov, with pylint
+a significant slowdown can be experienced.  Pausing any active tracers for the
+linting process can improve performance.  This behaviour can be activated with:
+
+.. code-block:: shell
+
+    py.test --pylint --pylint-pause-tracer
+
 Acknowledgements
 ================
 

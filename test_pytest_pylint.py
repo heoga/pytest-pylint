@@ -2,6 +2,7 @@
 """
 Unit testing module for pytest-pylti plugin
 """
+import sys
 
 pytest_plugins = 'pytester',  # pylint: disable=invalid-name
 
@@ -96,3 +97,41 @@ msg-template=start {msg_id} end
         '--pylint', '--pylint-rcfile={0}'.format(rcfile.strpath)
     )
     assert 'start W0611 end' in result.stdout.str()
+
+
+def test_tracer_disabled(testdir):
+    """Verify basic pylint checks"""
+    class Tracer(object):
+        """A dummy tracer which just counts how many times it was called."""
+        calls = 0
+
+        def tracer(self, _frame, _event, _arg):
+            """The tracer which counts calls only."""
+            self.calls = self.calls + 1
+
+        def reset_calls(self):
+            """Resets the call count of the tracer to zero."""
+            self.calls = 0
+
+    test_tracer = Tracer()
+    sys.settrace(test_tracer.tracer)
+
+    testdir.makepyfile("""import sys""")
+    result = testdir.runpytest('--pylint')
+    expected_lines = (
+        'Missing module docstring',
+        'Unused import sys',
+        'Final newline missing',
+    )
+    for line in expected_lines:
+        assert line in result.stdout.str()
+    assert 'passed' not in result.stdout.str()
+    original_calls = test_tracer.calls
+
+    test_tracer.reset_calls()
+    off_result = testdir.runpytest('--pylint', '--pylint-pause-tracer')
+    for line in expected_lines:
+        assert line in off_result.stdout.str()
+    assert 'passed' not in off_result.stdout.str()
+    new_calls = test_tracer.calls
+    assert new_calls < 0.8 * original_calls
